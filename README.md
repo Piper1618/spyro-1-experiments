@@ -1,5 +1,5 @@
 # Piper's Spyro 1 Experiments
-In this repo, you'll find code scraps I've made while investigating Spyro the Dragon or while working on larger projects for the game. Anything posted here is provided in the hope it may be useful, but it may be unpolished, incompletely documented, or require careful handling. User Experience is usually not a priority and such documentation that exists may assume programming or game design knowledge.
+In this repo, you'll find code scraps I've made while investigating Spyro the Dragon or while working on larger projects for the game. Anything posted here is provided in the hope it may be useful, but it may be unpolished, incompletely documented, or require careful handling. User Experience is usually not a priority and such documentation that exists may assume programming or game design knowledge. I'm committed to providing PAL support in my polished projects whenever possible, but the code found here may not work on PAL.
 
 # Main Project(s)
 If you're looking for a polished project, look here!
