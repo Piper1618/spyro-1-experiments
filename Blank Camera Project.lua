@@ -1,7 +1,14 @@
 --[[
 	A blank project with support for rendering things.
+	It is built so multiple scripts based on this template
+	can run simultaneously without interfering with
+	each other.
+	All you need to do is define a unique value
+	for idempotenceName in the main loop and define
+	any update and render functions. 
 --]]
 
+-- Camera related stuff
 if true then	
 	-- The FOV and and border variables are specific
 	-- to Spyro the Dragon. If you want to make this code
@@ -28,24 +35,6 @@ if true then
 	
 	screen_halfWidth = screen_width / 2
 	screen_halfHeight = screen_height / 2
-	
-	if cameraX == nil then
-		cameraX = 0
-		cameraX_buffer = {}
-		cameraY = 0
-		cameraY_buffer = {}
-		cameraZ = 0
-		cameraZ_buffer = {}
-		
-		cameraYaw = 0
-		cameraYaw_buffer = {}
-
-		cameraPitch = 0
-		cameraPitch_buffer = {}
-
-		bufferLength = 3
-		bufferIndex = 0
-	end
 	
 	function worldSpaceToScreenSpace(x, y, z)
 		local relativeX = x - cameraX
@@ -368,46 +357,121 @@ if true then
 		cameraYaw_sin = math.sin(-cameraYaw)
 		cameraYaw_cos = math.cos(-cameraYaw)
 	end
+
+	if cameraX == nil then
+		cameraX = 0
+		cameraX_buffer = {}
+		cameraY = 0
+		cameraY_buffer = {}
+		cameraZ = 0
+		cameraZ_buffer = {}
+		
+		cameraYaw = 0
+		cameraYaw_buffer = {}
+
+		cameraPitch = 0
+		cameraPitch_buffer = {}
+
+		bufferLength = 3
+		bufferIndex = 0
+		
+		getCameraValues()
+	end
 end
 
-scriptRestart = true
-getCameraValues()
+function render_example()
+	-- Draw things here
+	
+	--For Example: (This should draw something near Sunny Flight in the Artisan Homeworld)
+	drawLine_world(76864, 50240, 6912, 77312, 49152, 6912)
+	drawLine_world(77312, 49152, 6912, 76864, 48064, 6912)
+	drawLine_world(76864, 48064, 6912, 75776, 47616, 6912)
+	drawLine_world(75776, 47616, 6912, 74688, 48064, 6912)
+	drawLine_world(74688, 48064, 6912, 74240, 49152, 6912)
+	drawLine_world(74240, 49152, 6912, 74688, 50240, 6912)
+	drawLine_world(74688, 50240, 6912, 75776, 50688, 6912)
+	drawLine_world(75776, 50688, 6912, 76864, 50240, 6912)
+	drawLine_world(76864, 50240, 6912, 75776, 49152, 8992)
+	drawLine_world(77312, 49152, 6912, 75776, 49152, 8992)
+	drawLine_world(76864, 48064, 6912, 75776, 49152, 8992)
+	drawLine_world(75776, 47616, 6912, 75776, 49152, 8992)
+	drawLine_world(74688, 48064, 6912, 75776, 49152, 8992)
+	drawLine_world(74240, 49152, 6912, 75776, 49152, 8992)
+	drawLine_world(74688, 50240, 6912, 75776, 49152, 8992)
+	drawLine_world(75776, 50688, 6912, 75776, 49152, 8992)
+	drawDiamond(75776, 49152, 8992)
+end
+
+updateFuncs = updateFuncs or {}
+renderFuncs = renderFuncs or {}
+updateIdempotence = updateIdempotence or {}
+maxIdempotence = maxIdempotence or 0
+forceRender = true
 
 while true do
-	local doRender = scriptRestart
-	scriptRestart = false
+	-- Define a unique name for this script
+	local idempotenceName = "blankProject"
 	
-	-- This is reading the lag counter in Spyro the Dragon to know when to render a new frame.
-	if memory.read_u32_le(0x075760) % 2 == 0 and lastCameraUpdate ~= emu.framecount() then
-		lastCameraUpdate = emu.framecount()
-		getCameraValues()
-		doRender = true
-	end
+	-- In each update cycle, all the functions defined in
+	-- updateFuncs will be run, then all the functions in
+	-- renderFuncs. The number value of each function
+	-- defines the order they run in, with higher numbers
+	-- running later. Don't use in-line functions here.
 	
-	if doRender then
-		gui.clearGraphics()	
+	--updateFuncs[yourFunctionHere] = 1
+	
+	renderFuncs[render_example] = 1
+	
+	-- Nothing below here should need to be changed
+	
+	if updateIdempotence[idempotenceName] or 0 == maxIdempotence then
+		maxIdempotence = maxIdempotence + 1
+		updateIdempotence[idempotenceName] = maxIdempotence
+		
+		-- The remainder of this block will only run once
+		-- per update cycle, even across multiple scripts
+		-- with the same code.
+	
+		local doRender = false
+			
+		-- This is reading the lag counter in Spyro the Dragon to know when to render a new frame.
+		if memory.read_u32_le(0x075760) % 2 == 0 and lastCameraUpdate ~= emu.framecount() then
+			lastCameraUpdate = emu.framecount()
+			getCameraValues()
+			doRender = true
+		end
+		
+		--stuff that needs to happen every update, even when the emulator is paused
+		local orderedUpdateFuncs = {}
+		for k, v in pairs(updateFuncs) do
+			table.insert(orderedUpdateFuncs, {k, v})
+		end
+		table.sort(orderedUpdateFuncs, function(a, b) return a[2] < b[2] end)
+		for i, v in ipairs(orderedUpdateFuncs) do
+			v[1]()
+		end
+		updateFuncs = {}
+		
+		doRender = doRender or forceRender
+		forceRender = false
+		
+		if doRender then
+			gui.clearGraphics()	
 
-		-- Draw things here
-		
-		--For Example: (This should draw something near Sunny Flight in the Artisan Homeworld)
-		drawLine_world(76864, 50240, 6912, 77312, 49152, 6912)
-		drawLine_world(77312, 49152, 6912, 76864, 48064, 6912)
-		drawLine_world(76864, 48064, 6912, 75776, 47616, 6912)
-		drawLine_world(75776, 47616, 6912, 74688, 48064, 6912)
-		drawLine_world(74688, 48064, 6912, 74240, 49152, 6912)
-		drawLine_world(74240, 49152, 6912, 74688, 50240, 6912)
-		drawLine_world(74688, 50240, 6912, 75776, 50688, 6912)
-		drawLine_world(75776, 50688, 6912, 76864, 50240, 6912)
-		drawLine_world(76864, 50240, 6912, 75776, 49152, 8992)
-		drawLine_world(77312, 49152, 6912, 75776, 49152, 8992)
-		drawLine_world(76864, 48064, 6912, 75776, 49152, 8992)
-		drawLine_world(75776, 47616, 6912, 75776, 49152, 8992)
-		drawLine_world(74688, 48064, 6912, 75776, 49152, 8992)
-		drawLine_world(74240, 49152, 6912, 75776, 49152, 8992)
-		drawLine_world(74688, 50240, 6912, 75776, 49152, 8992)
-		drawLine_world(75776, 50688, 6912, 75776, 49152, 8992)
-		drawDiamond(75776, 49152, 8992)
-		
+			--stuff that only happens when rendering (not while paused)
+			local orderedRenderFuncs = {}
+			for k, v in pairs(renderFuncs) do
+				table.insert(orderedRenderFuncs, {k, v})
+			end
+			table.sort(orderedRenderFuncs, function(a, b) return a[2] < b[2] end)
+			for i, v in ipairs(orderedRenderFuncs) do
+				v[1]()
+			end
+			renderFuncs = {}
+			
+		end
+	else
+		updateIdempotence[idempotenceName] = maxIdempotence
 	end
 	
 	emu.yield()
